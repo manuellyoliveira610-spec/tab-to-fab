@@ -93,18 +93,23 @@ function App() {
         <TabsContent value="cartoes" className="mt-0">
           <CardsTab state={state} />
         </TabsContent>
+        <TabsContent value="investimentos" className="mt-0">
+          <InvestmentsTab state={state} monthTx={monthTx} monthLabel={monthLabel} />
+        </TabsContent>
         <TabsContent value="ajustes" className="mt-0">
           <SettingsTab state={state} />
         </TabsContent>
 
         <nav className="fixed bottom-0 inset-x-0 z-40">
           <div className="mx-auto max-w-md px-4 pb-4">
-            <TabsList className="w-full h-16 bg-card/90 backdrop-blur-xl border shadow-card rounded-2xl p-1.5 grid grid-cols-4">
+            <TabsList className="w-full h-16 bg-card/90 backdrop-blur-xl border shadow-card rounded-2xl p-1 grid grid-cols-5">
               <NavItem value="dashboard" icon={<LayoutDashboard className="w-5 h-5" />} label="Início" />
               <NavItem value="transacoes" icon={<ArrowLeftRight className="w-5 h-5" />} label="Lançar" />
               <NavItem value="cartoes" icon={<CardIcon className="w-5 h-5" />} label="Cartões" />
+              <NavItem value="investimentos" icon={<LineChart className="w-5 h-5" />} label="Invest." />
               <NavItem value="ajustes" icon={<Settings className="w-5 h-5" />} label="Ajustes" />
             </TabsList>
+
           </div>
         </nav>
       </Tabs>
