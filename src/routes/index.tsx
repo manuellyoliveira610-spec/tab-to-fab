@@ -125,12 +125,14 @@ function NavItem({ value, icon, label }: { value: string; icon: React.ReactNode;
 
 /* ---------- Dashboard ---------- */
 function Dashboard({
-  totals, monthTx, cards,
+  totals, monthTx, cards, goals,
 }: {
   totals: { receita: number; despesa: number; investimento: number; saldo: number; economia: number };
   monthTx: Transaction[];
-  cards: ReturnType<typeof useFinance>["cards"];
+  cards: CreditCard[];
+  goals: Goal[];
 }) {
+
   const byCategory = useMemo(() => {
     const map = new Map<string, number>();
     monthTx.filter((t) => t.kind === "despesa").forEach((t) => {
