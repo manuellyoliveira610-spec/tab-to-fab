@@ -145,8 +145,11 @@ function Dashboard({
 
   return (
     <div className="px-5 space-y-4">
+      <AlertsCard cards={cards} goals={goals} />
+
       {/* Saldo hero card */}
       <Card className="gradient-primary border-0 text-primary-foreground p-5 shadow-glow overflow-hidden relative">
+
         <div className="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
         <div className="relative">
           <p className="text-xs opacity-80">Saldo do mês</p>
