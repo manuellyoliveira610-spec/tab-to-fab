@@ -699,3 +699,105 @@ function ListEditor({ label, values, onChange }: { label: string; values: string
     </Card>
   );
 }
+
+function GoalsManager({ goals }: { goals: Goal[] }) {
+  const [open, setOpen] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
+  const [form, setForm] = useState<Omit<Goal, "id">>({ name: "", target: 0, saved: 0, deadline: today });
+
+  function submit() {
+    if (!form.name.trim() || !form.target) {
+      toast.error("Preencha nome e valor da meta");
+      return;
+    }
+    store.addGoal(form);
+    toast.success("Meta criada");
+    setOpen(false);
+    setForm({ name: "", target: 0, saved: 0, deadline: today });
+  }
+
+  return (
+    <Card className="p-4 gradient-card border shadow-card">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-semibold flex items-center gap-2"><Target className="w-4 h-4 text-primary-glow" /> Metas</h3>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" variant="outline"><Plus className="w-4 h-4 mr-1" /> Meta</Button>
+          </DialogTrigger>
+          <DialogContent className="bg-card max-w-md">
+            <DialogHeader><DialogTitle>Nova meta</DialogTitle></DialogHeader>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Nome" className="col-span-2">
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Viagem" />
+              </Field>
+              <Field label="Valor alvo">
+                <Input type="number" inputMode="decimal" value={form.target || ""} onChange={(e) => setForm({ ...form, target: parseFloat(e.target.value) || 0 })} />
+              </Field>
+              <Field label="Já guardado">
+                <Input type="number" inputMode="decimal" value={form.saved || ""} onChange={(e) => setForm({ ...form, saved: parseFloat(e.target.value) || 0 })} />
+              </Field>
+              <Field label="Prazo" className="col-span-2">
+                <Input type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
+              </Field>
+            </div>
+            <DialogFooter>
+              <Button onClick={submit} className="gradient-primary text-primary-foreground border-0 w-full">Salvar meta</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+      {goals.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Nenhuma meta cadastrada. Crie uma para receber alertas de prazo.</p>
+      ) : (
+        <div className="space-y-3">
+          {goals.map((g) => {
+            const pct = g.target > 0 ? Math.min((g.saved / g.target) * 100, 100) : 0;
+            const days = daysUntil(g.deadline);
+            return (
+              <div key={g.id} className="rounded-lg border p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate">{g.name}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Prazo {new Date(g.deadline + "T00:00:00").toLocaleDateString("pt-BR")} ·{" "}
+                      {days < 0 ? `atrasada ${-days}d` : days === 0 ? "vence hoje" : `faltam ${days}d`}
+                    </p>
+                  </div>
+                  <button onClick={() => store.removeGoal(g.id)} className="text-muted-foreground hover:text-destructive shrink-0">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="mt-2 space-y-1">
+                  <Progress value={pct} className="h-1.5" />
+                  <div className="flex justify-between text-[11px] text-muted-foreground">
+                    <span>{brl(g.saved)} / {brl(g.target)}</span>
+                    <span>{pct.toFixed(0)}%</span>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="Adicionar valor"
+                      className="h-8 text-xs"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          const v = parseFloat((e.target as HTMLInputElement).value) || 0;
+                          if (v) {
+                            store.updateGoal(g.id, { saved: g.saved + v });
+                            (e.target as HTMLInputElement).value = "";
+                            toast.success("Meta atualizada");
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
