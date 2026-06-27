@@ -635,16 +635,17 @@ function SettingsTab({ state }: { state: ReturnType<typeof useFinance> }) {
     { key: "payments", label: "Formas de pagamento" },
     { key: "investments", label: "Tipos de investimento" },
     { key: "cards", label: "Cartões" },
-    { key: "goals", label: "Metas" },
     { key: "types", label: "Tipos (Fixo/Variável/Parcelado)" },
   ];
 
   return (
     <div className="px-5 space-y-4">
       <h2 className="text-lg font-semibold">Ajustes</h2>
+      <GoalsManager goals={state.goals} />
       {groups.map((g) => (
         <ListEditor key={g.key} label={g.label} values={state.lists[g.key] as string[]} onChange={(vals) => store.updateList(g.key as never, vals as never)} />
       ))}
+
       <Card className="p-4 gradient-card border shadow-card">
         <h3 className="font-semibold mb-2">Dados</h3>
         <p className="text-xs text-muted-foreground mb-3">Seus dados ficam salvos apenas neste dispositivo.</p>
