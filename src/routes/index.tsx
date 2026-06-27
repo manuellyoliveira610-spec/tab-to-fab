@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   Wallet, TrendingUp, TrendingDown, PiggyBank, Plus, Trash2, CreditCard as CardIcon,
-  LayoutDashboard, ArrowLeftRight, Settings, Sparkles,
+  LayoutDashboard, ArrowLeftRight, Settings, Sparkles, AlertTriangle, Target, Bell, Clock,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
@@ -15,7 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
-import { brl, MONTHS, monthKey, store, useFinance, type Transaction, type TxKind, type Status } from "@/lib/finance-store";
+import { brl, MONTHS, monthKey, store, useFinance, type Transaction, type TxKind, type Status, type Goal, type CreditCard } from "@/lib/finance-store";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
