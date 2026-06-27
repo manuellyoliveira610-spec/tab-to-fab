@@ -359,9 +359,22 @@ function TxRow({ t, onDelete }: { t: Transaction; onDelete?: () => void }) {
         <p className={`text-sm font-semibold ${positive ? "text-success" : t.kind === "investimento" ? "text-primary-glow" : "text-foreground"}`}>
           {positive ? "+" : "-"} {brl(t.amount)}
         </p>
-        <Badge variant="outline" className="text-[10px] mt-0.5 font-normal">
-          {t.status}
-        </Badge>
+        <button
+          onClick={() => {
+            store.updateTransaction(t.id, { status: t.status === "Pago" ? "Pendente" : "Pago" });
+          }}
+          className="mt-0.5"
+          title="Alternar status"
+        >
+          <Badge
+            variant="outline"
+            className={`text-[10px] font-normal cursor-pointer ${
+              t.status === "Pago" ? "border-success/40 text-success" : "border-warning/40 text-warning"
+            }`}
+          >
+            {t.status}
+          </Badge>
+        </button>
       </div>
       {onDelete && (
         <button onClick={onDelete} className="text-muted-foreground hover:text-destructive p-1">
@@ -400,6 +413,8 @@ function TransactionsTab({
         ))}
       </div>
 
+      <ParcelGroupsCard transactions={state.transactions} />
+
       <Card className="p-4 gradient-card border shadow-card">
         {filtered.length === 0 ? (
           <EmptyHint text="Nenhum lançamento para este filtro." />
@@ -412,6 +427,116 @@ function TransactionsTab({
         )}
       </Card>
     </div>
+  );
+}
+
+function ParcelGroupsCard({ transactions }: { transactions: Transaction[] }) {
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+
+  const groups = useMemo(() => {
+    const map = new Map<string, Transaction[]>();
+    for (const t of transactions) {
+      if (!t.parcelGroupId) continue;
+      const arr = map.get(t.parcelGroupId) ?? [];
+      arr.push(t);
+      map.set(t.parcelGroupId, arr);
+    }
+    return Array.from(map.entries())
+      .map(([id, items]) => {
+        const sorted = [...items].sort((a, b) => (a.installment ?? 0) - (b.installment ?? 0));
+        const first = sorted[0];
+        const paid = sorted.filter((t) => t.status === "Pago").length;
+        const total = first?.installments ?? sorted.length;
+        const totalValue = sorted.reduce((a, b) => a + b.amount, 0);
+        const nextPending = sorted.find((t) => t.status === "Pendente");
+        return { id, items: sorted, first, paid, total, totalValue, nextPending };
+      })
+      .sort((a, b) => (a.nextPending?.date ?? "9").localeCompare(b.nextPending?.date ?? "9"));
+  }, [transactions]);
+
+  if (groups.length === 0) return null;
+
+  return (
+    <Card className="p-4 gradient-card border shadow-card">
+      <h3 className="font-semibold mb-3 text-sm flex items-center gap-2">
+        <Clock className="w-4 h-4 text-primary-glow" /> Parcelamentos
+      </h3>
+      <div className="space-y-3">
+        {groups.map((g) => {
+          const pct = g.total > 0 ? (g.paid / g.total) * 100 : 0;
+          const isOpen = openGroup === g.id;
+          return (
+            <div key={g.id} className="rounded-lg border p-3">
+              <button
+                onClick={() => setOpenGroup(isOpen ? null : g.id)}
+                className="w-full flex items-start justify-between gap-2 text-left"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate">{g.first?.description}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {g.paid}/{g.total} parcelas pagas · total {brl(g.totalValue)}
+                    {g.nextPending ? ` · próx ${new Date(g.nextPending.date + "T00:00:00").toLocaleDateString("pt-BR")}` : ""}
+                  </p>
+                </div>
+                <Badge variant="outline" className="text-[10px] shrink-0">
+                  {isOpen ? "Fechar" : "Ver"}
+                </Badge>
+              </button>
+              <Progress value={pct} className="h-1.5 mt-2" />
+              {isOpen && (
+                <div className="mt-3 space-y-1.5 border-t pt-3">
+                  {g.items.map((t) => (
+                    <div key={t.id} className="flex items-center justify-between text-xs gap-2">
+                      <div className="min-w-0 flex-1">
+                        <span className="font-medium text-primary-glow">{t.installment}/{t.installments}</span>
+                        <span className="text-muted-foreground ml-2">
+                          {new Date(t.date + "T00:00:00").toLocaleDateString("pt-BR")} · {brl(t.amount)}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => store.updateTransaction(t.id, { status: t.status === "Pago" ? "Pendente" : "Pago" })}
+                      >
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] cursor-pointer ${
+                            t.status === "Pago" ? "border-success/40 text-success" : "border-warning/40 text-warning"
+                          }`}
+                        >
+                          {t.status}
+                        </Badge>
+                      </button>
+                      <button
+                        onClick={() => {
+                          store.removeTransaction(t.id);
+                          toast.success("Parcela removida");
+                        }}
+                        className="text-muted-foreground hover:text-destructive p-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full mt-2 h-8 text-xs text-destructive border-destructive/40 hover:bg-destructive/10"
+                    onClick={() => {
+                      if (confirm(`Remover todas as ${g.items.length} parcelas?`)) {
+                        store.removeParcelGroup(g.id);
+                        setOpenGroup(null);
+                        toast.success("Parcelamento removido");
+                      }
+                    }}
+                  >
+                    Remover parcelamento
+                  </Button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 
