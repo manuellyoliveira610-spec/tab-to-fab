@@ -25,9 +25,18 @@ export interface CreditCard {
   status: Status;
 }
 
+export interface Goal {
+  id: string;
+  name: string;
+  target: number;
+  saved: number;
+  deadline: string; // ISO
+}
+
 export interface FinanceState {
   transactions: Transaction[];
   cards: CreditCard[];
+  goals: Goal[];
   lists: {
     categories: string[];
     payments: string[];
@@ -44,6 +53,8 @@ const KEY = "controle_financeiro_v1";
 const DEFAULTS: FinanceState = {
   transactions: [],
   cards: [],
+  goals: [],
+
   lists: {
     categories: ["Alimentação", "Transporte", "Moradia", "Saúde", "Lazer", "Assinaturas", "Educação", "Outros"],
     payments: ["Pix", "Débito", "Crédito", "Dinheiro", "Boleto", "Nubank", "Mercado Pago", "Inter"],
