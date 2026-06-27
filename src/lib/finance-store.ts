@@ -25,9 +25,18 @@ export interface CreditCard {
   status: Status;
 }
 
+export interface Goal {
+  id: string;
+  name: string;
+  target: number;
+  saved: number;
+  deadline: string; // ISO
+}
+
 export interface FinanceState {
   transactions: Transaction[];
   cards: CreditCard[];
+  goals: Goal[];
   lists: {
     categories: string[];
     payments: string[];
@@ -44,6 +53,8 @@ const KEY = "controle_financeiro_v1";
 const DEFAULTS: FinanceState = {
   transactions: [],
   cards: [],
+  goals: [],
+
   lists: {
     categories: ["Alimentação", "Transporte", "Moradia", "Saúde", "Lazer", "Assinaturas", "Educação", "Outros"],
     payments: ["Pix", "Débito", "Crédito", "Dinheiro", "Boleto", "Nubank", "Mercado Pago", "Inter"],
@@ -110,6 +121,19 @@ export const store = {
     state = { ...state, cards: state.cards.filter((c) => c.id !== id) };
     save();
   },
+  addGoal(g: Omit<Goal, "id">) {
+    state = { ...state, goals: [...state.goals, { ...g, id: crypto.randomUUID() }] };
+    save();
+  },
+  updateGoal(id: string, patch: Partial<Goal>) {
+    state = { ...state, goals: state.goals.map((g) => (g.id === id ? { ...g, ...patch } : g)) };
+    save();
+  },
+  removeGoal(id: string) {
+    state = { ...state, goals: state.goals.filter((g) => g.id !== id) };
+    save();
+  },
+
   updateList<K extends keyof FinanceState["lists"]>(key: K, values: FinanceState["lists"][K]) {
     state = { ...state, lists: { ...state.lists, [key]: values } };
     save();

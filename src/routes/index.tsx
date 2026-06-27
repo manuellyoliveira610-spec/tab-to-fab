@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   Wallet, TrendingUp, TrendingDown, PiggyBank, Plus, Trash2, CreditCard as CardIcon,
-  LayoutDashboard, ArrowLeftRight, Settings, Sparkles,
+  LayoutDashboard, ArrowLeftRight, Settings, Sparkles, AlertTriangle, Target, Bell, Clock,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
@@ -15,7 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
-import { brl, MONTHS, monthKey, store, useFinance, type Transaction, type TxKind, type Status } from "@/lib/finance-store";
+import { brl, MONTHS, monthKey, store, useFinance, type Transaction, type TxKind, type Status, type Goal, type CreditCard } from "@/lib/finance-store";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -82,8 +83,9 @@ function App() {
 
       <Tabs defaultValue="dashboard" className="w-full">
         <TabsContent value="dashboard" className="mt-0">
-          <Dashboard totals={totals} monthTx={monthTx} cards={state.cards} />
+          <Dashboard totals={totals} monthTx={monthTx} cards={state.cards} goals={state.goals} />
         </TabsContent>
+
         <TabsContent value="transacoes" className="mt-0">
           <TransactionsTab monthTx={monthTx} state={state} ym={ym} />
         </TabsContent>
@@ -121,14 +123,93 @@ function NavItem({ value, icon, label }: { value: string; icon: React.ReactNode;
   );
 }
 
+/* ---------- Alerts ---------- */
+export function daysUntil(iso: string): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(iso + "T00:00:00");
+  return Math.round((d.getTime() - today.getTime()) / 86400000);
+}
+
+type Alert = { id: string; severity: "warning" | "danger" | "info"; title: string; message: string };
+
+function buildAlerts(cards: CreditCard[], goals: Goal[]): Alert[] {
+  const alerts: Alert[] = [];
+  for (const c of cards) {
+    const pct = c.limit > 0 ? (c.used / c.limit) * 100 : 0;
+    if (pct >= 100) {
+      alerts.push({ id: `c-${c.id}-over`, severity: "danger", title: `${c.name}: limite excedido`, message: `${brl(c.used)} de ${brl(c.limit)} (${pct.toFixed(0)}%)` });
+    } else if (pct >= 80) {
+      alerts.push({ id: `c-${c.id}-near`, severity: "warning", title: `${c.name}: limite quase no fim`, message: `${pct.toFixed(0)}% utilizado · disponível ${brl(c.limit - c.used)}` });
+    }
+    const days = daysUntil(c.dueDate);
+    if (c.status !== "Pago") {
+      if (days < 0) {
+        alerts.push({ id: `c-${c.id}-late`, severity: "danger", title: `${c.name}: fatura atrasada`, message: `Venceu há ${-days} dia(s)` });
+      } else if (days <= 5) {
+        alerts.push({ id: `c-${c.id}-soon`, severity: "warning", title: `${c.name}: vence em breve`, message: days === 0 ? "Vence hoje" : `Faltam ${days} dia(s) · ${brl(c.used)}` });
+      }
+    }
+  }
+  for (const g of goals) {
+    const days = daysUntil(g.deadline);
+    const pct = g.target > 0 ? (g.saved / g.target) * 100 : 0;
+    if (days < 0 && pct < 100) {
+      alerts.push({ id: `g-${g.id}-late`, severity: "danger", title: `Meta "${g.name}" atrasada`, message: `${pct.toFixed(0)}% concluída · venceu há ${-days} dia(s)` });
+    } else if (days <= 7 && pct < 100) {
+      alerts.push({ id: `g-${g.id}-soon`, severity: "warning", title: `Meta "${g.name}" próxima do prazo`, message: `${pct.toFixed(0)}% · ${days === 0 ? "vence hoje" : `faltam ${days} dia(s)`} · restam ${brl(Math.max(g.target - g.saved, 0))}` });
+    }
+  }
+  return alerts;
+}
+
+function AlertsCard({ cards, goals }: { cards: CreditCard[]; goals: Goal[] }) {
+  const alerts = useMemo(() => buildAlerts(cards, goals), [cards, goals]);
+  if (alerts.length === 0) return null;
+  return (
+    <Card className="p-4 border bg-card/80 backdrop-blur shadow-card">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-7 h-7 rounded-lg gradient-primary flex items-center justify-center shadow-glow">
+          <Bell className="w-3.5 h-3.5 text-primary-foreground" />
+        </div>
+        <h3 className="font-semibold text-sm">Alertas</h3>
+        <Badge variant="outline" className="ml-auto text-[10px]">{alerts.length}</Badge>
+      </div>
+      <div className="space-y-2">
+        {alerts.map((a) => {
+          const tone =
+            a.severity === "danger"
+              ? "bg-destructive/10 text-destructive border-destructive/30"
+              : a.severity === "warning"
+              ? "bg-warning/10 text-warning border-warning/30"
+              : "bg-primary/10 text-primary-glow border-primary/30";
+          const Icon = a.severity === "danger" ? AlertTriangle : a.severity === "warning" ? Clock : Bell;
+          return (
+            <div key={a.id} className={`flex items-start gap-2.5 p-2.5 rounded-lg border ${tone}`}>
+              <Icon className="w-4 h-4 mt-0.5 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold leading-tight">{a.title}</p>
+                <p className="text-[11px] opacity-80 mt-0.5">{a.message}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
 /* ---------- Dashboard ---------- */
+
 function Dashboard({
-  totals, monthTx, cards,
+  totals, monthTx, cards, goals,
 }: {
   totals: { receita: number; despesa: number; investimento: number; saldo: number; economia: number };
   monthTx: Transaction[];
-  cards: ReturnType<typeof useFinance>["cards"];
+  cards: CreditCard[];
+  goals: Goal[];
 }) {
+
   const byCategory = useMemo(() => {
     const map = new Map<string, number>();
     monthTx.filter((t) => t.kind === "despesa").forEach((t) => {
@@ -141,8 +222,11 @@ function Dashboard({
 
   return (
     <div className="px-5 space-y-4">
+      <AlertsCard cards={cards} goals={goals} />
+
       {/* Saldo hero card */}
       <Card className="gradient-primary border-0 text-primary-foreground p-5 shadow-glow overflow-hidden relative">
+
         <div className="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
         <div className="relative">
           <p className="text-xs opacity-80">Saldo do mês</p>
@@ -217,8 +301,36 @@ function Dashboard({
           </div>
         </Card>
       )}
+
+      {goals.length > 0 && (
+        <Card className="p-5 gradient-card border shadow-card">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold flex items-center gap-2"><Target className="w-4 h-4 text-primary-glow" /> Metas</h3>
+            <span className="text-xs text-muted-foreground">{goals.length} ativas</span>
+          </div>
+          <div className="space-y-3">
+            {goals.map((g) => {
+              const pct = g.target > 0 ? Math.min((g.saved / g.target) * 100, 100) : 0;
+              const days = daysUntil(g.deadline);
+              return (
+                <div key={g.id}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="font-medium">{g.name}</span>
+                    <span className="text-muted-foreground">{brl(g.saved)} / {brl(g.target)}</span>
+                  </div>
+                  <Progress value={pct} className="h-1.5" />
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {pct.toFixed(0)}% · {days < 0 ? `Atrasada ${-days}d` : days === 0 ? "Vence hoje" : `Faltam ${days} dias`}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
     </div>
   );
+
 }
 
 function StatCard({
@@ -523,16 +635,17 @@ function SettingsTab({ state }: { state: ReturnType<typeof useFinance> }) {
     { key: "payments", label: "Formas de pagamento" },
     { key: "investments", label: "Tipos de investimento" },
     { key: "cards", label: "Cartões" },
-    { key: "goals", label: "Metas" },
     { key: "types", label: "Tipos (Fixo/Variável/Parcelado)" },
   ];
 
   return (
     <div className="px-5 space-y-4">
       <h2 className="text-lg font-semibold">Ajustes</h2>
+      <GoalsManager goals={state.goals} />
       {groups.map((g) => (
         <ListEditor key={g.key} label={g.label} values={state.lists[g.key] as string[]} onChange={(vals) => store.updateList(g.key as never, vals as never)} />
       ))}
+
       <Card className="p-4 gradient-card border shadow-card">
         <h3 className="font-semibold mb-2">Dados</h3>
         <p className="text-xs text-muted-foreground mb-3">Seus dados ficam salvos apenas neste dispositivo.</p>
@@ -586,3 +699,105 @@ function ListEditor({ label, values, onChange }: { label: string; values: string
     </Card>
   );
 }
+
+function GoalsManager({ goals }: { goals: Goal[] }) {
+  const [open, setOpen] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
+  const [form, setForm] = useState<Omit<Goal, "id">>({ name: "", target: 0, saved: 0, deadline: today });
+
+  function submit() {
+    if (!form.name.trim() || !form.target) {
+      toast.error("Preencha nome e valor da meta");
+      return;
+    }
+    store.addGoal(form);
+    toast.success("Meta criada");
+    setOpen(false);
+    setForm({ name: "", target: 0, saved: 0, deadline: today });
+  }
+
+  return (
+    <Card className="p-4 gradient-card border shadow-card">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-semibold flex items-center gap-2"><Target className="w-4 h-4 text-primary-glow" /> Metas</h3>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" variant="outline"><Plus className="w-4 h-4 mr-1" /> Meta</Button>
+          </DialogTrigger>
+          <DialogContent className="bg-card max-w-md">
+            <DialogHeader><DialogTitle>Nova meta</DialogTitle></DialogHeader>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Nome" className="col-span-2">
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Viagem" />
+              </Field>
+              <Field label="Valor alvo">
+                <Input type="number" inputMode="decimal" value={form.target || ""} onChange={(e) => setForm({ ...form, target: parseFloat(e.target.value) || 0 })} />
+              </Field>
+              <Field label="Já guardado">
+                <Input type="number" inputMode="decimal" value={form.saved || ""} onChange={(e) => setForm({ ...form, saved: parseFloat(e.target.value) || 0 })} />
+              </Field>
+              <Field label="Prazo" className="col-span-2">
+                <Input type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
+              </Field>
+            </div>
+            <DialogFooter>
+              <Button onClick={submit} className="gradient-primary text-primary-foreground border-0 w-full">Salvar meta</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+      {goals.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Nenhuma meta cadastrada. Crie uma para receber alertas de prazo.</p>
+      ) : (
+        <div className="space-y-3">
+          {goals.map((g) => {
+            const pct = g.target > 0 ? Math.min((g.saved / g.target) * 100, 100) : 0;
+            const days = daysUntil(g.deadline);
+            return (
+              <div key={g.id} className="rounded-lg border p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate">{g.name}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Prazo {new Date(g.deadline + "T00:00:00").toLocaleDateString("pt-BR")} ·{" "}
+                      {days < 0 ? `atrasada ${-days}d` : days === 0 ? "vence hoje" : `faltam ${days}d`}
+                    </p>
+                  </div>
+                  <button onClick={() => store.removeGoal(g.id)} className="text-muted-foreground hover:text-destructive shrink-0">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="mt-2 space-y-1">
+                  <Progress value={pct} className="h-1.5" />
+                  <div className="flex justify-between text-[11px] text-muted-foreground">
+                    <span>{brl(g.saved)} / {brl(g.target)}</span>
+                    <span>{pct.toFixed(0)}%</span>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="Adicionar valor"
+                      className="h-8 text-xs"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          const v = parseFloat((e.target as HTMLInputElement).value) || 0;
+                          if (v) {
+                            store.updateGoal(g.id, { saved: g.saved + v });
+                            (e.target as HTMLInputElement).value = "";
+                            toast.success("Meta atualizada");
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
