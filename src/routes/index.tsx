@@ -308,32 +308,6 @@ function Dashboard({
         </Card>
       )}
 
-      {goals.length > 0 && (
-        <Card className="p-5 gradient-card border shadow-card">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold flex items-center gap-2"><Target className="w-4 h-4 text-primary-glow" /> Metas</h3>
-            <span className="text-xs text-muted-foreground">{goals.length} ativas</span>
-          </div>
-          <div className="space-y-3">
-            {goals.map((g) => {
-              const pct = g.target > 0 ? Math.min((g.saved / g.target) * 100, 100) : 0;
-              const days = daysUntil(g.deadline);
-              return (
-                <div key={g.id}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium">{g.name}</span>
-                    <span className="text-muted-foreground">{brl(g.saved)} / {brl(g.target)}</span>
-                  </div>
-                  <Progress value={pct} className="h-1.5" />
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    {pct.toFixed(0)}% · {days < 0 ? `Atrasada ${-days}d` : days === 0 ? "Vence hoje" : `Faltam ${days} dias`}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      )}
     </div>
   );
 
@@ -647,7 +621,7 @@ function SettingsTab({ state }: { state: ReturnType<typeof useFinance> }) {
   return (
     <div className="px-5 space-y-4">
       <h2 className="text-lg font-semibold">Ajustes</h2>
-      <GoalsManager goals={state.goals} />
+      
       {groups.map((g) => (
         <ListEditor key={g.key} label={g.label} values={state.lists[g.key] as string[]} onChange={(vals) => store.updateList(g.key as never, vals as never)} />
       ))}
@@ -845,6 +819,7 @@ function InvestmentsTab({ state, monthTx, monthLabel }: { state: ReturnType<type
 
   return (
     <div className="px-5 space-y-4">
+      <GoalsManager goals={state.goals} />
       <div className="grid grid-cols-2 gap-3">
         <Card className="p-4 gradient-card border shadow-card">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
