@@ -83,8 +83,9 @@ function App() {
 
       <Tabs defaultValue="dashboard" className="w-full">
         <TabsContent value="dashboard" className="mt-0">
-          <Dashboard totals={totals} monthTx={monthTx} cards={state.cards} />
+          <Dashboard totals={totals} monthTx={monthTx} cards={state.cards} goals={state.goals} />
         </TabsContent>
+
         <TabsContent value="transacoes" className="mt-0">
           <TransactionsTab monthTx={monthTx} state={state} ym={ym} />
         </TabsContent>
