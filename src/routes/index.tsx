@@ -123,7 +123,84 @@ function NavItem({ value, icon, label }: { value: string; icon: React.ReactNode;
   );
 }
 
+/* ---------- Alerts ---------- */
+export function daysUntil(iso: string): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(iso + "T00:00:00");
+  return Math.round((d.getTime() - today.getTime()) / 86400000);
+}
+
+type Alert = { id: string; severity: "warning" | "danger" | "info"; title: string; message: string };
+
+function buildAlerts(cards: CreditCard[], goals: Goal[]): Alert[] {
+  const alerts: Alert[] = [];
+  for (const c of cards) {
+    const pct = c.limit > 0 ? (c.used / c.limit) * 100 : 0;
+    if (pct >= 100) {
+      alerts.push({ id: `c-${c.id}-over`, severity: "danger", title: `${c.name}: limite excedido`, message: `${brl(c.used)} de ${brl(c.limit)} (${pct.toFixed(0)}%)` });
+    } else if (pct >= 80) {
+      alerts.push({ id: `c-${c.id}-near`, severity: "warning", title: `${c.name}: limite quase no fim`, message: `${pct.toFixed(0)}% utilizado · disponível ${brl(c.limit - c.used)}` });
+    }
+    const days = daysUntil(c.dueDate);
+    if (c.status !== "Pago") {
+      if (days < 0) {
+        alerts.push({ id: `c-${c.id}-late`, severity: "danger", title: `${c.name}: fatura atrasada`, message: `Venceu há ${-days} dia(s)` });
+      } else if (days <= 5) {
+        alerts.push({ id: `c-${c.id}-soon`, severity: "warning", title: `${c.name}: vence em breve`, message: days === 0 ? "Vence hoje" : `Faltam ${days} dia(s) · ${brl(c.used)}` });
+      }
+    }
+  }
+  for (const g of goals) {
+    const days = daysUntil(g.deadline);
+    const pct = g.target > 0 ? (g.saved / g.target) * 100 : 0;
+    if (days < 0 && pct < 100) {
+      alerts.push({ id: `g-${g.id}-late`, severity: "danger", title: `Meta "${g.name}" atrasada`, message: `${pct.toFixed(0)}% concluída · venceu há ${-days} dia(s)` });
+    } else if (days <= 7 && pct < 100) {
+      alerts.push({ id: `g-${g.id}-soon`, severity: "warning", title: `Meta "${g.name}" próxima do prazo`, message: `${pct.toFixed(0)}% · ${days === 0 ? "vence hoje" : `faltam ${days} dia(s)`} · restam ${brl(Math.max(g.target - g.saved, 0))}` });
+    }
+  }
+  return alerts;
+}
+
+function AlertsCard({ cards, goals }: { cards: CreditCard[]; goals: Goal[] }) {
+  const alerts = useMemo(() => buildAlerts(cards, goals), [cards, goals]);
+  if (alerts.length === 0) return null;
+  return (
+    <Card className="p-4 border bg-card/80 backdrop-blur shadow-card">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-7 h-7 rounded-lg gradient-primary flex items-center justify-center shadow-glow">
+          <Bell className="w-3.5 h-3.5 text-primary-foreground" />
+        </div>
+        <h3 className="font-semibold text-sm">Alertas</h3>
+        <Badge variant="outline" className="ml-auto text-[10px]">{alerts.length}</Badge>
+      </div>
+      <div className="space-y-2">
+        {alerts.map((a) => {
+          const tone =
+            a.severity === "danger"
+              ? "bg-destructive/10 text-destructive border-destructive/30"
+              : a.severity === "warning"
+              ? "bg-warning/10 text-warning border-warning/30"
+              : "bg-primary/10 text-primary-glow border-primary/30";
+          const Icon = a.severity === "danger" ? AlertTriangle : a.severity === "warning" ? Clock : Bell;
+          return (
+            <div key={a.id} className={`flex items-start gap-2.5 p-2.5 rounded-lg border ${tone}`}>
+              <Icon className="w-4 h-4 mt-0.5 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold leading-tight">{a.title}</p>
+                <p className="text-[11px] opacity-80 mt-0.5">{a.message}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
 /* ---------- Dashboard ---------- */
+
 function Dashboard({
   totals, monthTx, cards, goals,
 }: {
