@@ -16,6 +16,7 @@ export interface Transaction {
   isFixed?: boolean;
   installment?: number; // parcela atual
   installments?: number; // total de parcelas
+  parcelGroupId?: string; // identifica todas as parcelas da mesma compra
 }
 
 export interface CreditCard {
@@ -97,6 +98,36 @@ export const store = {
     return () => listeners.delete(l);
   },
   addTransaction(tx: Omit<Transaction, "id">) {
+    // Geração automática de parcelas futuras
+    if (
+      tx.kind === "despesa" &&
+      tx.type === "Parcelado" &&
+      tx.installments && tx.installments > 1 &&
+      tx.installment && tx.installment >= 1
+    ) {
+      const groupId = crypto.randomUUID();
+      const start = tx.installment;
+      const total = tx.installments;
+      const baseDate = new Date(tx.date + "T00:00:00");
+      const newTxs: Transaction[] = [];
+      for (let i = start; i <= total; i++) {
+        const offset = i - start;
+        const d = new Date(baseDate);
+        d.setMonth(d.getMonth() + offset);
+        newTxs.push({
+          ...tx,
+          id: crypto.randomUUID(),
+          date: d.toISOString().slice(0, 10),
+          installment: i,
+          installments: total,
+          parcelGroupId: groupId,
+          status: offset === 0 ? tx.status : "Pendente",
+        });
+      }
+      state = { ...state, transactions: [...newTxs, ...state.transactions] };
+      save();
+      return;
+    }
     state = { ...state, transactions: [{ ...tx, id: crypto.randomUUID() }, ...state.transactions] };
     save();
   },
@@ -109,6 +140,10 @@ export const store = {
   },
   removeTransaction(id: string) {
     state = { ...state, transactions: state.transactions.filter((t) => t.id !== id) };
+    save();
+  },
+  removeParcelGroup(groupId: string) {
+    state = { ...state, transactions: state.transactions.filter((t) => t.parcelGroupId !== groupId) };
     save();
   },
   addCard(c: Omit<CreditCard, "id">) {
