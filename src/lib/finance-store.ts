@@ -14,6 +14,8 @@ export interface Transaction {
   status: Status;
   amount: number;
   isFixed?: boolean;
+  installment?: number; // parcela atual
+  installments?: number; // total de parcelas
 }
 
 export interface CreditCard {
