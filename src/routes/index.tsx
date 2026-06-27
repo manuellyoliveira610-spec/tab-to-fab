@@ -343,7 +343,14 @@ function TxRow({ t, onDelete }: { t: Transaction; onDelete?: () => void }) {
         {positive ? <TrendingUp className="w-4 h-4" /> : t.kind === "investimento" ? <PiggyBank className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{t.description}</p>
+        <p className="text-sm font-medium truncate">
+          {t.description}
+          {t.type === "Parcelado" && t.installments ? (
+            <span className="ml-1.5 text-[10px] text-primary-glow font-normal">
+              ({t.installment ?? "?"}/{t.installments})
+            </span>
+          ) : null}
+        </p>
         <p className="text-xs text-muted-foreground">
           {new Date(t.date + "T00:00:00").toLocaleDateString("pt-BR")} · {t.category} · {t.payment}
         </p>
@@ -472,6 +479,30 @@ function NewTransactionDialog({ state, defaultDate }: { state: ReturnType<typeof
           <Field label="Recorrência">
             <SelectFromList value={form.type} options={state.lists.types} onChange={(v) => setForm({ ...form, type: v })} />
           </Field>
+          {form.kind === "despesa" && form.type === "Parcelado" && (
+            <>
+              <Field label="Parcela atual">
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  value={form.installment || ""}
+                  onChange={(e) => setForm({ ...form, installment: parseInt(e.target.value) || undefined })}
+                  placeholder="Ex: 2"
+                />
+              </Field>
+              <Field label="Total de parcelas">
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  value={form.installments || ""}
+                  onChange={(e) => setForm({ ...form, installments: parseInt(e.target.value) || undefined })}
+                  placeholder="Ex: 12"
+                />
+              </Field>
+            </>
+          )}
           <Field label="Status" className="col-span-2">
             <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Status })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
