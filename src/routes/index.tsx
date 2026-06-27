@@ -2,8 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   Wallet, TrendingUp, TrendingDown, PiggyBank, Plus, Trash2, CreditCard as CardIcon,
-  LayoutDashboard, ArrowLeftRight, Settings, Sparkles, AlertTriangle, Target, Bell, Clock,
+  LayoutDashboard, ArrowLeftRight, Settings, Sparkles, AlertTriangle, Target, Bell, Clock, LineChart,
 } from "lucide-react";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -92,18 +93,23 @@ function App() {
         <TabsContent value="cartoes" className="mt-0">
           <CardsTab state={state} />
         </TabsContent>
+        <TabsContent value="investimentos" className="mt-0">
+          <InvestmentsTab state={state} monthTx={monthTx} monthLabel={monthLabel} />
+        </TabsContent>
         <TabsContent value="ajustes" className="mt-0">
           <SettingsTab state={state} />
         </TabsContent>
 
         <nav className="fixed bottom-0 inset-x-0 z-40">
           <div className="mx-auto max-w-md px-4 pb-4">
-            <TabsList className="w-full h-16 bg-card/90 backdrop-blur-xl border shadow-card rounded-2xl p-1.5 grid grid-cols-4">
+            <TabsList className="w-full h-16 bg-card/90 backdrop-blur-xl border shadow-card rounded-2xl p-1 grid grid-cols-5">
               <NavItem value="dashboard" icon={<LayoutDashboard className="w-5 h-5" />} label="Início" />
               <NavItem value="transacoes" icon={<ArrowLeftRight className="w-5 h-5" />} label="Lançar" />
               <NavItem value="cartoes" icon={<CardIcon className="w-5 h-5" />} label="Cartões" />
+              <NavItem value="investimentos" icon={<LineChart className="w-5 h-5" />} label="Invest." />
               <NavItem value="ajustes" icon={<Settings className="w-5 h-5" />} label="Ajustes" />
             </TabsList>
+
           </div>
         </nav>
       </Tabs>
@@ -800,4 +806,129 @@ function GoalsManager({ goals }: { goals: Goal[] }) {
     </Card>
   );
 }
+
+function InvestmentsTab({ state, monthTx, monthLabel }: { state: ReturnType<typeof useFinance>; monthTx: Transaction[]; monthLabel: string }) {
+  const allInv = useMemo(
+    () => state.transactions.filter((t) => t.kind === "investimento"),
+    [state.transactions],
+  );
+  const monthInv = useMemo(() => monthTx.filter((t) => t.kind === "investimento"), [monthTx]);
+
+  const totalAll = allInv.reduce((a, b) => a + b.amount, 0);
+  const totalMonth = monthInv.reduce((a, b) => a + b.amount, 0);
+
+  const byCategory = useMemo(() => {
+    const map = new Map<string, { total: number; count: number; lastDate: string }>();
+    for (const t of allInv) {
+      const key = t.category || "Sem categoria";
+      const cur = map.get(key) ?? { total: 0, count: 0, lastDate: t.date };
+      cur.total += t.amount;
+      cur.count += 1;
+      if (t.date > cur.lastDate) cur.lastDate = t.date;
+      map.set(key, cur);
+    }
+    return Array.from(map.entries())
+      .map(([name, v]) => ({ name, ...v, pct: totalAll > 0 ? (v.total / totalAll) * 100 : 0 }))
+      .sort((a, b) => b.total - a.total);
+  }, [allInv, totalAll]);
+
+  const byPayment = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const t of allInv) map.set(t.payment || "—", (map.get(t.payment || "—") ?? 0) + t.amount);
+    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+  }, [allInv]);
+
+  const recent = useMemo(
+    () => [...allInv].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 8),
+    [allInv],
+  );
+
+  return (
+    <div className="px-5 space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="p-4 gradient-card border shadow-card">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <PiggyBank className="w-3.5 h-3.5" /> Total investido
+          </div>
+          <p className="text-xl font-bold mt-1 text-primary-glow">{brl(totalAll)}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">{allInv.length} aporte(s)</p>
+        </Card>
+        <Card className="p-4 gradient-card border shadow-card">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <TrendingUp className="w-3.5 h-3.5" /> Em {monthLabel}
+          </div>
+          <p className="text-xl font-bold mt-1">{brl(totalMonth)}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">{monthInv.length} aporte(s)</p>
+        </Card>
+      </div>
+
+      <Card className="p-4 gradient-card border shadow-card">
+        <h3 className="font-semibold flex items-center gap-2 mb-3">
+          <LineChart className="w-4 h-4 text-primary-glow" /> Onde está seu dinheiro
+        </h3>
+        {byCategory.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Nenhum investimento registrado. Lance um investimento na aba "Lançar" para começar a acompanhar.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {byCategory.map((c) => (
+              <div key={c.name} className="rounded-lg border p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate">{c.name}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {c.count} aporte(s) · último em {new Date(c.lastDate + "T00:00:00").toLocaleDateString("pt-BR")}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-semibold text-primary-glow">{brl(c.total)}</p>
+                    <p className="text-[11px] text-muted-foreground">{c.pct.toFixed(1)}%</p>
+                  </div>
+                </div>
+                <Progress value={c.pct} className="h-1.5 mt-2" />
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {byPayment.length > 0 && (
+        <Card className="p-4 gradient-card border shadow-card">
+          <h3 className="font-semibold mb-3 text-sm">Por forma de aporte</h3>
+          <div className="space-y-2">
+            {byPayment.map(([name, val]) => (
+              <div key={name} className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">{name}</span>
+                <span className="font-medium">{brl(val)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <Card className="p-4 gradient-card border shadow-card">
+        <h3 className="font-semibold mb-3 text-sm">Aportes recentes</h3>
+        {recent.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Sem aportes ainda.</p>
+        ) : (
+          <div className="space-y-2">
+            {recent.map((t) => (
+              <div key={t.id} className="flex items-center justify-between text-sm border-b last:border-0 pb-2 last:pb-0">
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{t.description || t.category}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {new Date(t.date + "T00:00:00").toLocaleDateString("pt-BR")} · {t.category}
+                  </p>
+                </div>
+                <span className="font-semibold text-primary-glow shrink-0 ml-2">{brl(t.amount)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 
