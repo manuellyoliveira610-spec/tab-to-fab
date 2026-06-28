@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-export type TxKind = "receita" | "despesa" | "investimento";
+export type TxKind = "receita" | "despesa" | "investimento" | "meta" | "cartao";
 export type Status = "Pago" | "Pendente";
 
 export interface Transaction {
@@ -8,15 +8,17 @@ export interface Transaction {
   date: string; // ISO yyyy-mm-dd
   description: string;
   kind: TxKind;
-  type: string; // Fixo, Variável, Parcelado, etc.
+  type: string; // Fixo, Variável, Parcelado, À vista
   category: string;
   payment: string;
   status: Status;
   amount: number;
   isFixed?: boolean;
-  installment?: number; // parcela atual
-  installments?: number; // total de parcelas
-  parcelGroupId?: string; // identifica todas as parcelas da mesma compra
+  installment?: number;
+  installments?: number;
+  parcelGroupId?: string;
+  goalId?: string; // quando kind === "meta"
+  cardId?: string; // quando kind === "cartao"
 }
 
 export interface CreditCard {
@@ -24,7 +26,7 @@ export interface CreditCard {
   name: string;
   limit: number;
   used: number;
-  dueDate: string; // ISO
+  dueDate: string;
   status: Status;
 }
 
@@ -33,15 +35,31 @@ export interface Goal {
   name: string;
   target: number;
   saved: number;
-  deadline: string; // ISO
+  deadline: string;
+}
+
+export type ThemeName =
+  | "dark"
+  | "light"
+  | "pink"
+  | "purple"
+  | "blue"
+  | "green"
+  | "orange";
+
+export interface Profile {
+  name: string;
 }
 
 export interface FinanceState {
   transactions: Transaction[];
   cards: CreditCard[];
   goals: Goal[];
+  profile: Profile;
+  theme: ThemeName;
   lists: {
     categories: string[];
+    investmentCategories: string[];
     payments: string[];
     investments: string[];
     cards: string[];
@@ -57,14 +75,16 @@ const DEFAULTS: FinanceState = {
   transactions: [],
   cards: [],
   goals: [],
-
+  profile: { name: "" },
+  theme: "dark",
   lists: {
     categories: ["Alimentação", "Transporte", "Moradia", "Saúde", "Lazer", "Assinaturas", "Educação", "Outros"],
+    investmentCategories: ["Reserva de emergência", "Meta", "Renda fixa", "Fundo imobiliário", "Ações", "Cripto", "Tesouro Direto", "Outros"],
     payments: ["Pix", "Débito", "Crédito", "Dinheiro", "Boleto", "Nubank", "Mercado Pago", "Inter"],
     investments: ["Emergência", "Reserva", "Metas", "Bolsa"],
     cards: ["Nubank", "Mercado Pago", "Inter"],
     goals: ["Carro", "Viagem", "Reforma", "iPhone"],
-    types: ["Fixo", "Variável", "Parcelado"],
+    types: ["Fixo", "Variável", "Parcelado", "À vista"],
     statuses: ["Pago", "Pendente"],
   },
 };
@@ -75,7 +95,12 @@ function load(): FinanceState {
     const raw = localStorage.getItem(KEY);
     if (!raw) return DEFAULTS;
     const parsed = JSON.parse(raw);
-    return { ...DEFAULTS, ...parsed, lists: { ...DEFAULTS.lists, ...(parsed.lists || {}) } };
+    return {
+      ...DEFAULTS,
+      ...parsed,
+      profile: { ...DEFAULTS.profile, ...(parsed.profile || {}) },
+      lists: { ...DEFAULTS.lists, ...(parsed.lists || {}) },
+    };
   } catch {
     return DEFAULTS;
   }
@@ -98,9 +123,29 @@ export const store = {
     return () => listeners.delete(l);
   },
   addTransaction(tx: Omit<Transaction, "id">) {
-    // Geração automática de parcelas futuras
+    // Aporte em meta: incrementa saved da meta
+    if (tx.kind === "meta" && tx.goalId) {
+      const g = state.goals.find((x) => x.id === tx.goalId);
+      if (g) {
+        state = {
+          ...state,
+          goals: state.goals.map((x) => (x.id === g.id ? { ...x, saved: x.saved + tx.amount } : x)),
+        };
+      }
+    }
+    // Compra no cartão: incrementa used do cartão
+    if (tx.kind === "cartao" && tx.cardId) {
+      const c = state.cards.find((x) => x.id === tx.cardId);
+      if (c) {
+        state = {
+          ...state,
+          cards: state.cards.map((x) => (x.id === c.id ? { ...x, used: x.used + tx.amount } : x)),
+        };
+      }
+    }
+    // Parcelamento
     if (
-      tx.kind === "despesa" &&
+      (tx.kind === "despesa" || tx.kind === "cartao") &&
       tx.type === "Parcelado" &&
       tx.installments && tx.installments > 1 &&
       tx.installment && tx.installment >= 1
@@ -170,7 +215,14 @@ export const store = {
     state = { ...state, goals: state.goals.filter((g) => g.id !== id) };
     save();
   },
-
+  setProfile(p: Partial<Profile>) {
+    state = { ...state, profile: { ...state.profile, ...p } };
+    save();
+  },
+  setTheme(t: ThemeName) {
+    state = { ...state, theme: t };
+    save();
+  },
   updateList<K extends keyof FinanceState["lists"]>(key: K, values: FinanceState["lists"][K]) {
     state = { ...state, lists: { ...state.lists, [key]: values } };
     save();
@@ -199,6 +251,9 @@ export const MONTHS = [
 ];
 
 export function monthKey(iso: string) {
-  // returns "YYYY-MM"
   return iso.slice(0, 7);
+}
+
+export function yearKey(iso: string) {
+  return iso.slice(0, 4);
 }
