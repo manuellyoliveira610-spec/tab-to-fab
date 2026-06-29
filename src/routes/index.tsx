@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   TrendingUp, TrendingDown, PiggyBank, Plus, Trash2, CreditCard as CardIcon,
   LayoutDashboard, ArrowLeftRight, Settings, Sparkles, AlertTriangle, Target, Bell, Clock, LineChart, Check, User,
+  Eye, EyeOff, ChevronRight, ChevronDown, Calendar, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
