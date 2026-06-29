@@ -659,7 +659,7 @@ function TransactionsTab({
   const filtered = filter === "todos" ? periodTx : periodTx.filter((t) => t.kind === filter);
 
   return (
-    <div className="px-5 space-y-4">
+    <div className="max-w-5xl mx-auto px-5 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Lançamentos</h2>
         <NewTransactionDialog state={state} defaultDate={`${ym}-${String(new Date().getDate()).padStart(2, "0")}`} />
@@ -1016,7 +1016,7 @@ function CardsTab({ state }: { state: ReturnType<typeof useFinance> }) {
   }
 
   return (
-    <div className="px-5 space-y-4">
+    <div className="max-w-5xl mx-auto px-5 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Cartões & Limites</h2>
         <Dialog open={open} onOpenChange={setOpen}>
@@ -1126,7 +1126,7 @@ function SettingsTab({ state }: { state: ReturnType<typeof useFinance> }) {
   ];
 
   return (
-    <div className="px-5 space-y-4">
+    <div className="max-w-5xl mx-auto px-5 space-y-4">
       <h2 className="text-lg font-semibold">Ajustes</h2>
 
       {/* Perfil */}
@@ -1344,7 +1344,7 @@ function InvestmentsTab({ state, periodTx, periodLabel }: { state: ReturnType<ty
   );
 
   return (
-    <div className="px-5 space-y-4">
+    <div className="max-w-5xl mx-auto px-5 space-y-4">
       {/* Cards de resumo */}
       <div className="grid grid-cols-2 gap-3">
         <Card className="p-4 gradient-card border shadow-card">
