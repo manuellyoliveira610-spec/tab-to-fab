@@ -89,40 +89,47 @@ function App() {
     <div className="min-h-screen pb-28">
       <Toaster position="top-center" richColors />
 
-      <header className="px-5 pt-8 pb-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Sparkles className="w-3.5 h-3.5" />
-              Myx+
+      <header className="max-w-5xl mx-auto px-5 pt-6 pb-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl gradient-primary flex items-center justify-center shadow-glow">
+              <Sparkles className="w-4 h-4 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight mt-1 truncate">
-              Olá, <span className="text-gradient">{greetingName}</span>
-            </h1>
+            <span className="text-xl font-bold tracking-tight">Myx<span className="text-primary-glow">+</span></span>
           </div>
-          <div className="flex flex-col gap-1.5 items-end">
-            <div className="flex items-center rounded-full bg-card/80 backdrop-blur border p-0.5 text-[10px]">
-              <button
-                onClick={() => setView("month")}
-                className={`px-2.5 py-1 rounded-full transition ${view === "month" ? "gradient-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}
-              >Mês</button>
-              <button
-                onClick={() => setView("year")}
-                className={`px-2.5 py-1 rounded-full transition ${view === "year" ? "gradient-primary text-primary-foreground shadow-glow" : "text-muted-foreground"}`}
-              >Ano</button>
-            </div>
-            <div className="flex items-center gap-1 rounded-full bg-card/80 backdrop-blur px-2 py-1 border">
-              <button onClick={() => view === "month" ? changeMonth(-1) : changeYear(-1)} className="w-6 h-6 rounded-full hover:bg-muted text-muted-foreground">‹</button>
-              <span className="text-[11px] font-medium px-2 min-w-[100px] text-center">{periodLabel}</span>
-              <button onClick={() => view === "month" ? changeMonth(1) : changeYear(1)} className="w-6 h-6 rounded-full hover:bg-muted text-muted-foreground">›</button>
-            </div>
+          <div className="flex items-center gap-2">
+            <button className="w-9 h-9 rounded-full bg-card/80 border flex items-center justify-center text-muted-foreground hover:text-foreground transition" aria-label="Notificações">
+              <Bell className="w-4 h-4" />
+            </button>
+            <button onClick={() => setActiveTab("ajustes")} className="w-9 h-9 rounded-full bg-card/80 border flex items-center justify-center text-muted-foreground hover:text-foreground transition" aria-label="Perfil">
+              <User className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
+              {getGreeting()}, <span className="text-gradient">{greetingName}</span> <span aria-hidden>👋</span>
+            </h1>
+            <button
+              onClick={() => setView(view === "month" ? "year" : "month")}
+              className="mt-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            >
+              {periodLabel} <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="flex items-center gap-1 rounded-full bg-card/80 backdrop-blur px-2 py-1.5 border shrink-0">
+            <button onClick={() => view === "month" ? changeMonth(-1) : changeYear(-1)} className="w-8 h-8 rounded-full hover:bg-muted text-muted-foreground flex items-center justify-center">‹</button>
+            <Calendar className="w-4 h-4 text-primary-glow mx-1" />
+            <button onClick={() => view === "month" ? changeMonth(1) : changeYear(1)} className="w-8 h-8 rounded-full hover:bg-muted text-muted-foreground flex items-center justify-center">›</button>
           </div>
         </div>
       </header>
 
-      <Tabs defaultValue="dashboard" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsContent value="dashboard" className="mt-0">
-          <Dashboard totals={totals} periodTx={periodTx} cards={state.cards} goals={state.goals} periodLabel={periodLabel} />
+          <Dashboard totals={totals} periodTx={periodTx} cards={state.cards} goals={state.goals} periodLabel={periodLabel} onAddCard={() => setActiveTab("cartoes")} onSeeAllTx={() => setActiveTab("transacoes")} />
         </TabsContent>
 
         <TabsContent value="transacoes" className="mt-0">
