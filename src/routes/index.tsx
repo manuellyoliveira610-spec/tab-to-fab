@@ -52,6 +52,7 @@ function App() {
   const [view, setView] = useState<ViewMode>("month");
   const [ym, setYm] = useState<string>(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
   const [year, setYear] = useState<string>(String(now.getFullYear()));
+  const [activeTab, setActiveTab] = useState("dashboard");
 
   useEffect(() => { applyTheme(state.theme); }, [state.theme]);
 
