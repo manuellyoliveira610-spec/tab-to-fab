@@ -146,12 +146,12 @@ function App() {
         </TabsContent>
 
         <nav className="fixed bottom-0 inset-x-0 z-40">
-          <div className="mx-auto max-w-md px-4 pb-4">
+          <div className="mx-auto max-w-2xl px-4 pb-4">
             <TabsList className="w-full h-16 bg-card/90 backdrop-blur-xl border shadow-card rounded-2xl p-1 grid grid-cols-5">
               <NavItem value="dashboard" icon={<LayoutDashboard className="w-5 h-5" />} label="Início" />
               <NavItem value="transacoes" icon={<ArrowLeftRight className="w-5 h-5" />} label="Lançar" />
               <NavItem value="cartoes" icon={<CardIcon className="w-5 h-5" />} label="Cartões" />
-              <NavItem value="investimentos" icon={<LineChart className="w-5 h-5" />} label="Invest." />
+              <NavItem value="investimentos" icon={<LineChart className="w-5 h-5" />} label="Investimentos" />
               <NavItem value="ajustes" icon={<Settings className="w-5 h-5" />} label="Ajustes" />
             </TabsList>
           </div>
